@@ -22,7 +22,8 @@ $carteira = $_SESSION['carteira'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="website icon" href="real.svg" type="svg">
     <title>MyPocket</title>
 </head>
@@ -30,7 +31,11 @@ $carteira = $_SESSION['carteira'];
 <body>
     <div class="container py-5">
 
-        <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex justify-content-end gap-3 mb-3">
+            <a href="exportar.php" class="btn btn-sm btn-outline-success">
+                📊 Exportar Excel (.CSV)
+            </a>
+
             <button id="btnTema" class="btn btn-outline-secondary">
                 🌙 Modo Escuro
             </button>
@@ -129,35 +134,35 @@ $carteira = $_SESSION['carteira'];
     </div>
 
     <script>
-    const btnTema = document.getElementById('btnTema');
-    const htmlTag = document.documentElement;
+        const btnTema = document.getElementById('btnTema');
+        const htmlTag = document.documentElement;
 
-    // 1. Verifica se o usuário já tinha escolhido um tema antes
-    const temaSalvo = localStorage.getItem('tema') || 'light';
-    htmlTag.setAttribute('data-bs-theme', temaSalvo);
-    atualizarBotao(temaSalvo);
+        // 1. Verifica se o usuário já tinha escolhido um tema antes
+        const temaSalvo = localStorage.getItem('tema') || 'light';
+        htmlTag.setAttribute('data-bs-theme', temaSalvo);
+        atualizarBotao(temaSalvo);
 
-    // 2. Escuta o clique no botão
-    btnTema.addEventListener('click', () => {
-        // Se estiver light, muda pra dark. Se estiver dark, muda pra light
-        const novoTema = htmlTag.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-        
-        htmlTag.setAttribute('data-bs-theme', novoTema);
-        localStorage.setItem('tema', novoTema); // Salva no navegador
-        atualizarBotao(novoTema);
-    });
+        // 2. Escuta o clique no botão
+        btnTema.addEventListener('click', () => {
+            // Se estiver light, muda pra dark. Se estiver dark, muda pra light
+            const novoTema = htmlTag.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
 
-    // 3. Função para mudar o texto/ícone do botão
-    function atualizarBotao(tema) {
-        if (tema === 'dark') {
-            btnTema.innerHTML = '☀️ Modo Claro';
-            btnTema.className = 'btn btn-outline-warning';
-        } else {
-            btnTema.innerHTML = '🌙 Modo Escuro';
-            btnTema.className = 'btn btn-outline-dark';
+            htmlTag.setAttribute('data-bs-theme', novoTema);
+            localStorage.setItem('tema', novoTema); // Salva no navegador
+            atualizarBotao(novoTema);
+        });
+
+        // 3. Função para mudar o texto/ícone do botão
+        function atualizarBotao(tema) {
+            if (tema === 'dark') {
+                btnTema.innerHTML = '☀️ Modo Claro';
+                btnTema.className = 'btn btn-outline-warning';
+            } else {
+                btnTema.innerHTML = '🌙 Modo Escuro';
+                btnTema.className = 'btn btn-outline-dark';
+            }
         }
-    }
-</script>
+    </script>
 </body>
 
 </html>
