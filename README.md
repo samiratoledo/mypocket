@@ -1,48 +1,61 @@
-# mypocket
-projeto 2 bimestre de pw2 
+# 🪙 MyPocket — Gerenciador Financeiro Pessoal
 
-1. O Script de Exportação (exportar.php)
-Este código força o navegador a baixar o arquivo em vez de exibi-lo na tela.
+O **MyPocket** é um ecossistema de organização financeira pessoal robusto, focado no controle de endividamento e saúde financeira doméstica. O projeto foi desenvolvido como critério de avaliação para a disciplina de **Programação Web 2 (PW2)**.
 
-PHP
-<?php
-// Seus dados (podem vir do banco de dados ou arrays)
-$dados = [
-    ['ID', 'Nome', 'Email', 'Data de Cadastro'],
-    [1, 'Fulano de Tal', 'fulano@email.com', '2024-05-28'],
-    [2, 'Beltrana Silva', 'beltrana@email.com', '2024-05-27'],
-    [3, 'Ciclano Souza', 'ciclano@email.com', '2024-05-26']
-];
+O grande diferencial deste sistema é o seu motor de regras de negócio baseado puramente no paradigma de **Programação Orientada a Objetos (POO)** com **Tipagem Estrita (PHP 8.1+)**, garantindo que nenhuma transação seja burlada ou inserida sem as devidas validações de segurança.
 
-// Define o nome do arquivo
-$filename = "relatorio_" . date('Y-m-d') . ".csv";
+---
 
-// Configura os headers para forçar o download
-header('Content-Type: text/csv; charset=utf-8');
-header('Content-Disposition: attachment; filename=' . $filename);
+## 🚀 Funcionalidades Principais
 
-// Abre a saída (output) como se fosse um arquivo
-$output = fopen('php://output', 'w');
+* **Controle de Endividamento Estrito:** O sistema atua de forma preventiva. A carteira barra automaticamente qualquer tentativa de gasto que ultrapasse o saldo líquido disponível.
+* **Classificação Automática de Fluxo:** Separação polimórfica entre Receitas (Entradas) e Despesas (Saídas).
+* **Histórico Inalterável (Auditoria):** Transações não podem ser editadas ou apagadas, simulando um livro-caixa real. Correções devem ser feitas via estorno.
+* **Extrato Consolidado Dinâmico:** Listagem cronológica com diferenciação visual baseada no tipo de movimentação.
+* **Alternador de Tema Nativo (Light/Dark Mode):** Interface adaptável que salva a preferência do usuário no navegador (`localStorage`).
+* **Exportação para Excel/CSV:** Funcionalidade analítica para baixar todo o histórico em formato `.csv` tratado para caracteres da língua portuguesa (UTF-8 com BOM).
 
-// Adiciona o BOM (Byte Order Mark) para que o Excel reconheça acentos corretamente
-fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+---
 
-// Percorre o array e escreve no CSV
-foreach ($dados as $linha) {
-    fputcsv($output, $linha, ';'); // O ';' é o delimitador comum no Brasil
-}
+## 🛠️ Pilares de POO Aplicados (Requisitos Técnicos)
 
-fclose($output);
-exit;
-2. Pontos Importantes para seu Projeto
-Delimitador: Usei o ponto e vírgula (;) no fputcsv. Embora o nome seja Comma (vírgula), o Excel em português costuma abrir melhor arquivos separados por ;.
+* **Abstração & Herança:** Criação da classe abstrata `Transacao`, que serve de molde obrigatório e compartilha atributos e métodos para as classes filhas `Receita` e `Despesa`.
+* **Encapsulamento Rigoroso:** Atributos críticos como `$saldo` e `$historico` utilizam visibilidade `private`. O saldo jamais é alterado diretamente de fora da classe, sendo modificado apenas por métodos validadores internos (`addTransacao`).
+* **Polimorfismo:** O método abstrato `getTipo()` é sobrescrito pelas classes filhas, permitindo que o sistema descubra dinamicamente se trata-se de uma Entrada ou Saída em tempo de execução.
+* **Métodos Mágicos:** Implementação do método construtor `__construct` nas entidades de dados.
+* **Tratamento de Exceções:** Lançamento de `Exception` caso o limite de saldo seja violado, capturado por blocos `try/catch` na camada de controle para exibição de alertas amigáveis (UX).
+* **Padrão PRG (Post-Redirect-Get):** Proteção do fluxo HTTP contra reenvio de dados e duplicidade de lançamentos ao atualizar a página (F5).
 
-Acentuação (UTF-8): Adicionei o fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));. Sem isso, nomes com acentos (como "João") podem aparecer bugados no Excel.
+---
 
-Segurança: Se você estiver puxando esses dados de um banco de dados (MySQL), lembre-se de tratar a conexão e usar um loop while para buscar as linhas e passá-las para o fputcsv.
+## 📂 Estrutura de Arquivos
 
-3. Como usar no HTML
-Basta criar um link ou botão que aponte para o seu arquivo PHP:
+/mypocket
+  ├── classes/
+  │    ├── Transacao.php  (Classe Abstrata Mãe)
+  │    ├── Receita.php    (Classe Filha - Herda de Transacao)
+  │    ├── Despesa.php    (Classe Filha - Herda de Transacao)
+  │    └── Carteira.php   (Gerencia Saldo, Coleções e Regras de Negócio)
+  ├── processa.php        (Controlador - Captura inputs, manipula objetos e gerencia a sessão)
+  ├── exportar.php        (Serviço - Converte a coleção de objetos da sessão em arquivo CSV)
+  └── index.php           (Visão - Interface responsiva integrada ao Bootstrap 5.3)
 
-HTML
-<a href="exportar.php" class="btn">Baixar Relatório em CSV</a>
+⚙️ Tecnologias Utilizadas
+PHP 8.1+ (Com declare(strict_types=1); em todos os arquivos de lógica)
+
+Bootstrap 5.3 (Sistema de Grid responsivo e suporte a Light/Dark Mode)
+
+JavaScript (Vanilla) (Manipulação do DOM para troca de temas e persistência em localStorage)
+
+Sessões PHP (Persistência do estado do objeto Carteira entre requisições)
+
+💻 Como Rodar o Projeto
+Certifique-se de ter um servidor local com suporte a PHP 8.1 ou superior instalado (como o XAMPP, WampServer ou Laragon).
+
+Clone ou mova a pasta do projeto para o diretório raiz do seu servidor local (ex: C:\xampp\htdocs\ ou D:\...\www\).
+
+Abra o navegador e acesse:
+
+Plaintext
+http://localhost/mypocket/index.php
+Comece a lançar suas receitas e despesas!
