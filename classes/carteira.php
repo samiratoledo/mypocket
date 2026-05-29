@@ -15,7 +15,7 @@ class Carteira
         return $this->historico;
     }
 
-    public function addTransicao(Transacao $transacao)
+    public function addTransacao(Transacao $transacao)
     {
 
         if ($transacao->getTipo() == "Entrada") {
