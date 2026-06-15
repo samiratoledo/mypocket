@@ -8,6 +8,10 @@ abstract class Transacao {
 
     public function __construct(float $valor, string $data, string $descricao) {
         // Inicializa as propriedades
+        if($valor <= 0){
+            throw new Exception("Valor deve ser maaior que 0!");
+            
+        }
         $this->valor = $valor;
         $this->data = $data;
         $this->descricao = $descricao;
