@@ -35,10 +35,6 @@ $carteira = $_SESSION['carteira'];
             <a href="exportar.php" class="btn btn-sm btn-outline-success">
                 📊 Exportar Excel (.CSV)
             </a>
-
-            <button id="btnTema" class="btn btn-outline-secondary">
-                🌙 Modo Escuro
-            </button>
         </div>
 
         <div class="mb-4">
@@ -132,37 +128,6 @@ $carteira = $_SESSION['carteira'];
             </div>
         </div>
     </div>
-
-    <script>
-        const btnTema = document.getElementById('btnTema');
-        const htmlTag = document.documentElement;
-
-        // 1. Verifica se o usuário já tinha escolhido um tema antes
-        const temaSalvo = localStorage.getItem('tema') || 'light';
-        htmlTag.setAttribute('data-bs-theme', temaSalvo);
-        atualizarBotao(temaSalvo);
-
-        // 2. Escuta o clique no botão
-        btnTema.addEventListener('click', () => {
-            // Se estiver light, muda pra dark. Se estiver dark, muda pra light
-            const novoTema = htmlTag.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-
-            htmlTag.setAttribute('data-bs-theme', novoTema);
-            localStorage.setItem('tema', novoTema); // Salva no navegador
-            atualizarBotao(novoTema);
-        });
-
-        // 3. Função para mudar o texto/ícone do botão
-        function atualizarBotao(tema) {
-            if (tema === 'dark') {
-                btnTema.innerHTML = '☀️ Modo Claro';
-                btnTema.className = 'btn btn-outline-warning';
-            } else {
-                btnTema.innerHTML = '🌙 Modo Escuro';
-                btnTema.className = 'btn btn-outline-dark';
-            }
-        }
-    </script>
 </body>
 
 </html>
