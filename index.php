@@ -29,10 +29,16 @@ $carteira = $_SESSION['carteira'];
 </head>
 
 <body>
+
+<style>
+    body {
+        background: #76a5af;
+    }
+</style>
     <div class="container py-5">
 
         <div class="d-flex justify-content-end gap-3 mb-3">
-            <a href="exportar.php" class="btn btn-sm btn-outline-success">
+            <a href="exportar.php" class="btn btn-sm btn-dark btn-hover-success">
                 📊 Exportar Excel (.CSV)
             </a>
         </div>
