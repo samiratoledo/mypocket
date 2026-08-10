@@ -6,6 +6,7 @@ require_once 'classes/Transacao.php';
 require_once 'classes/Receita.php';
 require_once 'classes/Despesa.php';
 require_once 'classes/Carteira.php';
+require_once 'conexao.php';
 
 // 2º Iniciamos a sessão com as classes já na memória
 session_start();
