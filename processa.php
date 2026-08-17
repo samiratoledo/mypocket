@@ -3,74 +3,64 @@
 declare(strict_types=1);
 
 require_once 'classes/Transacao.php';
-require_once 'classes/Despesa.php';
 require_once 'classes/Receita.php';
+require_once 'classes/Despesa.php';
 require_once 'classes/Carteira.php';
 require_once 'conexao.php';
 
 session_start();
 
 if (!isset($_SESSION['usuario_id'])) {
-
     header('Location: login.php');
     exit;
-
 }
 
-$tipo = (string) $_POST['tipo'];
-$valor = (float) $_POST['valor'];
-$data = (string) $_POST['data'];
-$descricao = trim((string) $_POST['descricao']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $valor = (float) ($_POST['valor'] ?? 0);
+    $tipoInput = trim($_POST['tipo'] ?? '');
+    $data = trim($_POST['data'] ?? '');
+    $descricao = trim($_POST['descricao'] ?? '');
+    $usuarioId = (int) $_SESSION['usuario_id'];
 
-$usuarioId = $_SESSION['usuario_id'];
+    // Normaliza para comparação ignorando acentos e maiúsculas
+    $tipoNormalizado = mb_strtolower($tipoInput);
 
-try {
-
-    if ($tipo === 'Entrada') {
-
-        $registro = new Receita(
-            $valor,
-            $data,
-            $descricao
-        );
-
-    } elseif ($tipo === 'Saída') {
-
-        $registro = new Despesa(
-            $valor,
-            $data,
-            $descricao
-        );
-
+    if ($tipoNormalizado === 'entrada') {
+        $tipoBanco = 'Entrada';
+    } elseif ($tipoNormalizado === 'saida' || $tipoNormalizado === 'saída') {
+        $tipoBanco = 'Saída';
     } else {
-
-        throw new Exception("Tipo inválido.");
-
+        $_SESSION['erro'] = 'Tipo de transação inválido!';
+        header('Location: index.php');
+        exit;
     }
 
-    // CREATE - Inserir transação no banco
+    if ($valor <= 0 || empty($data) || empty($descricao)) {
+        $_SESSION['erro'] = 'Preencha todos os campos corretamente!';
+        header('Location: index.php');
+        exit;
+    }
+
+    // Inserção no Banco de Dados
     $stmt = $pdo->prepare("
-        INSERT INTO transacoes
-        (valor, tipo, data, descricao, usuario_id)
-        VALUES
-        (:valor, :tipo, :data, :descricao, :usuario_id)
+        INSERT INTO transacoes (valor, tipo, data, descricao, usuario_id)
+        VALUES (:valor, :tipo, :data, :descricao, :usuario_id)
     ");
 
-    $stmt->execute([
-        'valor' => $registro->getValor(),
-        'tipo' => $registro->getTipo(),
-        'data' => $registro->getData(),
-        'descricao' => $registro->getDescricao(),
+    $sucesso = $stmt->execute([
+        'valor'      => $valor,
+        'tipo'       => $tipoBanco,
+        'data'       => $data,
+        'descricao'  => $descricao,
         'usuario_id' => $usuarioId
     ]);
 
-    $_SESSION['sucesso'] = "Transação realizada com sucesso!";
+    if ($sucesso) {
+        $_SESSION['sucesso'] = 'Transação cadastrada com sucesso!';
+    } else {
+        $_SESSION['erro'] = 'Erro ao salvar transação no banco de dados.';
+    }
 
-} catch (Exception $e) {
-
-    $_SESSION['erro'] = $e->getMessage();
-
+    header('Location: index.php');
+    exit;
 }
-
-header('Location: index.php');
-exit;

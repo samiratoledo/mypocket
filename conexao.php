@@ -1,7 +1,7 @@
 <?php
 
 $host = 'localhost';
-$db   = 'mypocket';
+$db   = 'sistema_crud';
 $user = 'root';
 $pass = '';
 

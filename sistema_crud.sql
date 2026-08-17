@@ -1,6 +1,5 @@
-CREATE DATABASE mypocket;
-
-USE mypocket;
+CREATE DATABASE sistema_crud;
+USE sistema_crud;
 
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -11,21 +10,14 @@ CREATE TABLE usuarios (
 CREATE TABLE transacoes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     valor DECIMAL(10,2) NOT NULL,
-    tipo ENUM('Entrada', 'Saída') NOT NULL,
+    tipo ENUM('Entrada', 'Saida') NOT NULL,
     data DATE NOT NULL,
     descricao VARCHAR(255) NOT NULL,
     usuario_id INT NOT NULL,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
+DESCRIBE transacoes;
+
 SELECT * FROM usuarios;
-SELECT * FROM transacoes;
-
-USE mypocket;
-
-ALTER TABLE transacoes
-CHANGE COLUMN DATA data DATE NOT NULL;
-
-describe transacoes;
-
 SELECT * FROM transacoes;

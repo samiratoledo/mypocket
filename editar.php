@@ -144,8 +144,8 @@ if (!$transacao) {
                     </option>
 
                     <option
-                        value="Saída"
-                        <?= $transacao['tipo'] === 'Saída' ? 'selected' : '' ?>
+                        value="Saida"
+                        <?= $transacao['tipo'] === 'Saida' ? 'selected' : '' ?>
                     >
                         Despesa/Gasto
                     </option>

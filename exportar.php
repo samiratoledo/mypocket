@@ -64,7 +64,7 @@ header(
 
 
 /*
- * Abre a saída para gerar o arquivo
+ * Abre a Saida para gerar o arquivo
  */
 $output = fopen('php://output', 'w');
 
