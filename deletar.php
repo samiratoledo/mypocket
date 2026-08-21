@@ -9,11 +9,12 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-$id = $_GET['id'] ?? null;
-$usuarioId = $_SESSION['usuario_id'];
+$id = (int) ($_GET['id'] ?? 0);
+$usuarioId = (int) $_SESSION['usuario_id'];
 
 if (!$id) {
-    die("ID da transação não recebido.");
+    header('Location: index.php');
+    exit;
 }
 
 $stmt = $pdo->prepare("
@@ -26,6 +27,8 @@ $stmt->execute([
     'id' => $id,
     'usuario_id' => $usuarioId
 ]);
+
+$_SESSION['sucesso'] = 'Transação excluída com sucesso.';
 
 header('Location: index.php');
 exit;

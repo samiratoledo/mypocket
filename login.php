@@ -1,54 +1,37 @@
 <?php
-
 require_once 'conexao.php';
 
 session_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email'] ?? '');
+    $senha = $_POST['senha'] ?? '';
 
-    $email = trim($_POST['email']);
-    $senha = $_POST['senha'];
+    $stmt = $pdo->prepare(
+        'SELECT id, nome, email, senha FROM usuarios WHERE email = :email'
+    );
 
-    $stmt = $pdo->prepare("
-        SELECT *
-        FROM usuarios
-        WHERE email = :email
-    ");
-
-    $stmt->execute([
-        'email' => $email
-    ]);
-
+    $stmt->execute(['email' => $email]);
     $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($usuario && password_verify($senha, $usuario['senha'])) {
-
         $_SESSION['usuario_id'] = $usuario['id'];
+        $_SESSION['usuario_nome'] = $usuario['nome'];
         $_SESSION['usuario_email'] = $usuario['email'];
 
         header('Location: index.php');
         exit;
-
-    } else {
-
-        $erro = "E-mail ou senha incorretos.";
-
     }
-}
 
+    $erro = 'E-mail ou senha incorretos.';
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -57,16 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <link
-        rel="website icon"
-        href="real.svg"
-        type="svg"
-    >
+    <link rel="website icon" href="real.svg" type="svg">
 
     <title>Login - MyPocket</title>
 
     <style>
-
         body {
             background: #76a5af;
             min-height: 100vh;
@@ -78,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-card {
             width: 100%;
             max-width: 420px;
-            border: none;
+            border: 0;
             border-radius: 15px;
         }
 
@@ -90,56 +68,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .subtitulo {
             color: #6c757d;
         }
-
     </style>
-
 </head>
 
 <body>
-
     <div class="container px-3">
-
         <div class="card login-card shadow-sm mx-auto p-4">
 
             <div class="text-center mb-4">
-
-                <div class="logo">
-                    💰 MyPocket
-                </div>
-
-                <p class="subtitulo mb-0">
-                    Entre na sua conta
-                </p>
-
+                <div class="logo">💰 MyPocket</div>
+                <p class="subtitulo mb-0">Entre na sua conta</p>
             </div>
 
-
             <?php if (isset($erro)): ?>
-
                 <script>
-
                     Swal.fire({
                         icon: 'error',
                         title: 'Ops!',
-                        text: '<?= htmlspecialchars($erro) ?>',
+                        text: <?= json_encode($erro) ?>,
                         confirmButtonText: 'Entendi'
                     });
-
                 </script>
-
             <?php endif; ?>
-
 
             <form method="POST">
 
                 <div class="mb-3">
-
-                    <label
-                        for="email"
-                        class="form-label"
-                    >
-                        E-mail
-                    </label>
+                    <label for="email" class="form-label">E-mail</label>
 
                     <input
                         type="email"
@@ -149,18 +104,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         placeholder="Digite seu e-mail"
                         required
                     >
-
                 </div>
 
-
                 <div class="mb-3">
-
-                    <label
-                        for="senha"
-                        class="form-label"
-                    >
-                        Senha
-                    </label>
+                    <label for="senha" class="form-label">Senha</label>
 
                     <input
                         type="password"
@@ -170,24 +117,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         placeholder="Digite sua senha"
                         required
                     >
-
                 </div>
 
-
-                <button
-                    type="submit"
-                    class="btn btn-primary w-100 mt-2"
-                >
+                <button type="submit" class="btn btn-primary w-100 mt-2">
                     Entrar
                 </button>
 
             </form>
 
-
             <div class="text-center mt-4">
-
                 <p class="mb-0">
-
                     Ainda não possui uma conta?
 
                     <a
@@ -196,15 +135,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     >
                         Cadastrar
                     </a>
-
                 </p>
-
             </div>
 
         </div>
-
     </div>
-
 </body>
-
 </html>

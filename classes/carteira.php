@@ -1,13 +1,22 @@
 <?php
+declare(strict_types=1);
 
 class Carteira
 {
     private float $saldo = 0.0;
-    private array $historico = []; // Inicializa como array vazio
 
-    public function definirSaldo(float $saldo): void
+    public function adicionar(float $valor): void
     {
-        $this->saldo = $saldo;
+        $this->saldo += $valor;
+    }
+
+    public function retirar(float $valor): void
+    {
+        if ($valor > $this->saldo) {
+            throw new Exception('Saldo insuficiente.');
+        }
+
+        $this->saldo -= $valor;
     }
 
     public function getSaldo(): float
@@ -15,13 +24,8 @@ class Carteira
         return $this->saldo;
     }
 
-    public function carregarTransacao(Transacao $transacao): void
+    public function definirSaldo(float $saldo): void
     {
-        $this->historico[] = $transacao; // O "[]" garante que cada item seja adicionado à lista
-    }
-
-    public function getHistorico(): array
-    {
-        return $this->historico;
+        $this->saldo = $saldo;
     }
 }
