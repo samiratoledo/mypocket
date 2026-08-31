@@ -15,3 +15,5 @@ Quando estiver apertado:
 Quando estiver negativo:
 
 🔴 Cuidado: você está R$ 350,00 acima do orçamento previsto.
+
+//ORÇAMNETOP DIARIO COM O CALCULO ERRADO 

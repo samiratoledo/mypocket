@@ -14,10 +14,14 @@ if (!isset($_SESSION['usuario_id'])) {
 $usuarioId = (int) $_SESSION['usuario_id'];
 $usuarioNome = $_SESSION['usuario_nome'] ?? 'Usuário';
 
+function dinheiro(float $valor): string
+{
+    return 'R$ ' . number_format($valor, 2, ',', '.');
+}
 
-/* =====================================================
-   TRANSAÇÕES
-   ===================================================== */
+$anoAtual = (int) date('Y');
+$mesAtual = (int) date('m');
+$anoFinal = $anoAtual + 5;
 
 $stmt = $pdo->prepare("
     SELECT id, valor, tipo, data, descricao
@@ -25,465 +29,191 @@ $stmt = $pdo->prepare("
     WHERE usuario_id = :usuario_id
     ORDER BY data DESC, id DESC
 ");
-
-$stmt->execute([
-    'usuario_id' => $usuarioId
-]);
+$stmt->execute(['usuario_id' => $usuarioId]);
 
 $transacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-/* =====================================================
-   SALDO ATUAL
-   ===================================================== */
 
 $saldo = 0;
 
 foreach ($transacoes as $t) {
-
     $valor = (float) $t['valor'];
-
-    if ($t['tipo'] === 'Entrada') {
-        $saldo += $valor;
-    } else {
-        $saldo -= $valor;
-    }
+    $saldo += $t['tipo'] === 'Entrada' ? $valor : -$valor;
 }
 
 $carteira = new Carteira();
 $carteira->definirSaldo($saldo);
 
-
-/* =====================================================
-   ANO ATUAL
-   ===================================================== */
-
-$anoAtual = (int) date('Y');
-$mesAtual = (int) date('m');
-
-
-/* =====================================================
-   RESUMO MENSAL REAL
-   ===================================================== */
-
 $stmt = $pdo->prepare("
     SELECT
         DATE_FORMAT(data, '%Y-%m') AS mes,
-
-        SUM(
-            CASE
-                WHEN tipo = 'Entrada' THEN valor
-                ELSE 0
-            END
-        ) AS entrada,
-
-        SUM(
-            CASE
-                WHEN tipo = 'Saida' THEN valor
-                ELSE 0
-            END
-        ) AS saida,
-
-        SUM(
-            CASE
-                WHEN tipo = 'Diario' THEN valor
-                ELSE 0
-            END
-        ) AS diario
-
+        COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN valor ELSE 0 END), 0) AS entrada,
+        COALESCE(SUM(CASE WHEN tipo = 'Saida' THEN valor ELSE 0 END), 0) AS saida,
+        COALESCE(SUM(CASE WHEN tipo = 'Diario' THEN valor ELSE 0 END), 0) AS diario
     FROM transacoes
-
     WHERE usuario_id = :usuario_id
-
     GROUP BY DATE_FORMAT(data, '%Y-%m')
-
-    ORDER BY mes ASC
+    ORDER BY mes
 ");
-
-$stmt->execute([
-    'usuario_id' => $usuarioId
-]);
-
-$transacoesMensais = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-/* =====================================================
-   ORGANIZA OS DADOS POR MÊS
-   ===================================================== */
+$stmt->execute(['usuario_id' => $usuarioId]);
 
 $dadosMensais = [];
 
-foreach ($transacoesMensais as $mes) {
-
-    $dadosMensais[$mes['mes']] = [
-        'entrada' => (float) $mes['entrada'],
-        'saida'   => (float) $mes['saida'],
-        'diario'  => (float) $mes['diario']
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $m) {
+    $dadosMensais[$m['mes']] = [
+        'entrada' => (float) $m['entrada'],
+        'saida' => (float) $m['saida'],
+        'diario' => (float) $m['diario']
     ];
 }
-
-
-/* =====================================================
-   MONTA TODOS OS 12 MESES DO ANO
-   ===================================================== */
-
-$resumoAnual = [];
-
-for ($mes = 1; $mes <= 12; $mes++) {
-
-    $chave = sprintf(
-        '%04d-%02d',
-        $anoAtual,
-        $mes
-    );
-
-    $entrada = $dadosMensais[$chave]['entrada'] ?? 0;
-    $saida   = $dadosMensais[$chave]['saida'] ?? 0;
-    $diario  = $dadosMensais[$chave]['diario'] ?? 0;
-
-    $resultado = $entrada - $saida - $diario;
-
-    if ($mes < $mesAtual) {
-
-        $situacao = 'Real';
-
-    } elseif ($mes === $mesAtual) {
-
-        $situacao = 'Atual';
-
-    } else {
-
-        $situacao = 'Previsão';
-    }
-
-    $resumoAnual[] = [
-        'mes'       => $chave,
-        'entrada'   => $entrada,
-        'saida'     => $saida,
-        'diario'    => $diario,
-        'resultado' => $resultado,
-        'situacao'  => $situacao
-    ];
-}
-
-
-/* =====================================================
-   SALDO ANTERIOR AO ANO ATUAL
-   ===================================================== */
 
 $stmt = $pdo->prepare("
-    SELECT
-        COALESCE(
-            SUM(
-                CASE
-                    WHEN tipo = 'Entrada' THEN valor
-                    WHEN tipo IN ('Saida', 'Diario') THEN -valor
-                    ELSE 0
-                END
-            ),
-            0
-        ) AS saldo_anterior
-
+    SELECT COALESCE(SUM(
+        CASE
+            WHEN tipo = 'Entrada' THEN valor
+            WHEN tipo IN ('Saida', 'Diario') THEN -valor
+            ELSE 0
+        END
+    ), 0)
     FROM transacoes
-
     WHERE usuario_id = :usuario_id
-      AND data < :inicio_ano
+      AND data < :inicio
 ");
 
 $stmt->execute([
     'usuario_id' => $usuarioId,
-    'inicio_ano' => $anoAtual . '-01-01'
+    'inicio' => "$anoAtual-01-01"
 ]);
 
-$saldoAcumulado = (float) $stmt->fetchColumn();
+$saldoAnterior = (float) $stmt->fetchColumn();
 
+$anosResumo = [];
 
-/* =====================================================
-   SALDO ACUMULADO MÊS A MÊS
-   ===================================================== */
+for ($ano = $anoAtual; $ano <= $anoFinal; $ano++) {
+    $saldoAno = $ano === $anoAtual ? $saldoAnterior : $saldo;
 
-foreach ($resumoAnual as &$mes) {
+    for ($mes = 1; $mes <= 12; $mes++) {
+        $chave = sprintf('%04d-%02d', $ano, $mes);
 
-    $saldoAcumulado += $mes['resultado'];
+        if ($ano === $anoAtual) {
+            $dados = $dadosMensais[$chave] ?? [];
 
-    $mes['saldo'] = $saldoAcumulado;
+            $entrada = (float) ($dados['entrada'] ?? 0);
+            $saida = (float) ($dados['saida'] ?? 0);
+            $diario = (float) ($dados['diario'] ?? 0);
+
+            $situacao = $mes < $mesAtual
+                ? 'Real'
+                : ($mes === $mesAtual ? 'Atual' : 'Previsão');
+        } else {
+            $entrada = 0;
+            $saida = 0;
+            $diario = 0;
+            $situacao = 'Previsão';
+        }
+
+        $resultado = $entrada - $saida - $diario;
+        $saldoAno += $resultado;
+
+        $anosResumo[$ano][] = [
+            'mes' => $chave,
+            'entrada' => $entrada,
+            'saida' => $saida,
+            'diario' => $diario,
+            'resultado' => $resultado,
+            'saldo' => $saldoAno,
+            'situacao' => $situacao
+        ];
+    }
 }
-
-unset($mes);
-
-
-/* =====================================================
-   PRÓXIMO ANO — PREVISÃO
-   ===================================================== */
-
-$proximoAno = $anoAtual + 1;
-
-$previsaoProximoAno = [];
-
-for ($mes = 1; $mes <= 12; $mes++) {
-
-    $chave = sprintf(
-        '%04d-%02d',
-        $proximoAno,
-        $mes
-    );
-
-    $previsaoProximoAno[] = [
-        'mes'       => $chave,
-        'entrada'   => 0,
-        'saida'     => 0,
-        'diario'    => 0,
-        'resultado' => 0
-    ];
-}
-
-
-/* =====================================================
-   ORÇAMENTO DIÁRIO
-   ===================================================== */
 
 $hoje = new DateTime();
 
 $diaAtual = (int) $hoje->format('d');
-
 $diasNoMes = (int) $hoje->format('t');
-
 $diasRestantes = $diasNoMes - $diaAtual + 1;
-
-
-/* =====================================================
-   MOVIMENTAÇÃO DO MÊS ATUAL
-   ===================================================== */
 
 $stmt = $pdo->prepare("
     SELECT
-
-        COALESCE(
-            SUM(
-                CASE
-                    WHEN tipo = 'Entrada' THEN valor
-                    ELSE 0
-                END
-            ),
-            0
-        ) AS entradas,
-
-        COALESCE(
-            SUM(
-                CASE
-                    WHEN tipo = 'Saida' THEN valor
-                    ELSE 0
-                END
-            ),
-            0
-        ) AS saidas,
-
-        COALESCE(
-            SUM(
-                CASE
-                    WHEN tipo = 'Diario' THEN valor
-                    ELSE 0
-                END
-            ),
-            0
-        ) AS diarios
-
+        COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN valor ELSE 0 END), 0) AS entradas,
+        COALESCE(SUM(CASE WHEN tipo = 'Saida' THEN valor ELSE 0 END), 0) AS saidas,
+        COALESCE(SUM(CASE WHEN tipo = 'Diario' THEN valor ELSE 0 END), 0) AS diarios
     FROM transacoes
-
     WHERE usuario_id = :usuario_id
-
       AND data BETWEEN :inicio AND :fim
 ");
 
 $stmt->execute([
     'usuario_id' => $usuarioId,
-
     'inicio' => $hoje->format('Y-m-01'),
-
     'fim' => $hoje->format('Y-m-t')
 ]);
 
-$orcamentoMes = $stmt->fetch(PDO::FETCH_ASSOC);
+$orcamento = $stmt->fetch(PDO::FETCH_ASSOC);
 
+$entradasMes = (float) ($orcamento['entradas'] ?? 0);
+$saidasMes = (float) ($orcamento['saidas'] ?? 0);
+$diariosMes = (float) ($orcamento['diarios'] ?? 0);
 
-/* =====================================================
-   VALORES DO MÊS
-   ===================================================== */
-
-$entradasMes = (float) ($orcamentoMes['entradas'] ?? 0);
-
-$saidasMes = (float) ($orcamentoMes['saidas'] ?? 0);
-
-$diariosMes = (float) ($orcamentoMes['diarios'] ?? 0);
-
-
-/* =====================================================
-   DISPONÍVEL NO MÊS
-   ===================================================== */
-
-$disponivelMes =
-    $entradasMes
-    - $saidasMes
-    - $diariosMes;
-
-
-/* =====================================================
-   LIMITE DIÁRIO
-   ===================================================== */
+$disponivelMes = $entradasMes - $saidasMes - $diariosMes;
 
 $limiteDiario = $diasRestantes > 0
     ? $disponivelMes / $diasRestantes
     : 0;
 
-
-/* =====================================================
-   GASTOS DIÁRIOS DE HOJE
-   ===================================================== */
-
 $stmt = $pdo->prepare("
-    SELECT
-        COALESCE(
-            SUM(valor),
-            0
-        )
-
+    SELECT COALESCE(SUM(valor), 0)
     FROM transacoes
-
     WHERE usuario_id = :usuario_id
-
       AND tipo = 'Diario'
-
       AND data = :data
 ");
 
 $stmt->execute([
     'usuario_id' => $usuarioId,
-
     'data' => $hoje->format('Y-m-d')
 ]);
 
 $diarioHoje = (float) $stmt->fetchColumn();
-
-
-/* =====================================================
-   QUANTO AINDA PODE GASTAR HOJE
-   ===================================================== */
-
-$disponivelHoje =
-    $limiteDiario - $diarioHoje;
-
-
-/* =====================================================
-   NOTIFICAÇÃO
-   ===================================================== */
+$disponivelHoje = $limiteDiario - $diarioHoje;
 
 if ($disponivelMes < 0) {
-
     $notificacaoClasse = 'danger';
-
     $notificacaoTitulo = '🚨 Atenção!';
-
-    $notificacaoTexto =
-        'Seu orçamento do mês está negativo em '
-        . dinheiro(abs($disponivelMes))
-        . '.';
-
+    $notificacaoTexto = 'Seu orçamento do mês está negativo em ' .
+        dinheiro(abs($disponivelMes)) . '.';
 } elseif ($disponivelHoje < 0) {
-
     $notificacaoClasse = 'warning';
-
     $notificacaoTitulo = '⚠️ Cuidado!';
-
-    $notificacaoTexto =
-        'Você ultrapassou o limite de hoje em '
-        . dinheiro(abs($disponivelHoje))
-        . '.';
-
+    $notificacaoTexto = 'Você ultrapassou o limite de hoje em ' .
+        dinheiro(abs($disponivelHoje)) . '.';
 } else {
-
     $notificacaoClasse = 'success';
-
     $notificacaoTitulo = '💡 Orçamento diário';
-
-    $notificacaoTexto =
-        'Você pode gastar até '
-        . dinheiro(max(0, $limiteDiario))
-        . ' por dia para não negativar.';
+    $notificacaoTexto = 'Você pode gastar até ' .
+        dinheiro(max(0, $limiteDiario)) .
+        ' por dia para não negativar.';
 }
-
-
-/* =====================================================
-   FORMATAÇÃO
-   ===================================================== */
-
-function dinheiro(float $valor): string
-{
-    return 'R$ ' . number_format(
-        $valor,
-        2,
-        ',',
-        '.'
-    );
-}
-
-
-function nomeMes(string $mes): string
-{
-    $meses = [
-        '01' => 'Janeiro',
-        '02' => 'Fevereiro',
-        '03' => 'Março',
-        '04' => 'Abril',
-        '05' => 'Maio',
-        '06' => 'Junho',
-        '07' => 'Julho',
-        '08' => 'Agosto',
-        '09' => 'Setembro',
-        '10' => 'Outubro',
-        '11' => 'Novembro',
-        '12' => 'Dezembro'
-    ];
-
-    [$ano, $numero] = explode('-', $mes);
-
-    return $meses[$numero] . ' de ' . $ano;
-}
-
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
 
-    <script
-        src="https://cdn.jsdelivr.net/npm/sweetalert2@11">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <link
-        rel="website icon"
-        href="real.svg"
-        type="svg"
-    >
+    <link rel="website icon" href="real.svg" type="svg">
 
-    <title>
-        MyPocket - Controle Financeiro
-    </title>
+    <title>MyPocket - Controle Financeiro</title>
 
     <style>
-
         body {
             background: #76a5af;
         }
@@ -493,128 +223,66 @@ function nomeMes(string $mes): string
             overflow-wrap: anywhere;
         }
 
-        .card {
-            border: 0;
-            border-radius: 12px;
-        }
-
+        .card,
         .alert {
             border: 0;
             border-radius: 12px;
         }
-
     </style>
-
 </head>
 
 <body>
 
 <div class="container py-5">
 
-
-    <!-- =================================================
-         CABEÇALHO
-         ================================================= -->
-
     <div class="d-flex justify-content-between align-items-center mb-4">
-
-        <div>
-
-            <h1 class="text-white m-0">
-                💰 MyPocket
-            </h1>
-
-            <p class="text-white mb-0">
-                Olá,
-                <?= htmlspecialchars($usuarioNome) ?>!
-            </p>
-
-        </div>
+        <h1 class="text-white m-0">
+            💰 MyPocket - Olá, <?= htmlspecialchars($usuarioNome) ?>!
+        </h1>
 
         <div class="d-flex gap-2">
-
-            <a
-                href="exportar.php"
-                class="btn btn-sm btn-dark"
-            >
+            <a href="exportar.php" class="btn btn-sm btn-dark">
                 📊 Exportar CSV
             </a>
 
-            <a
-                href="logout.php"
-                class="btn btn-sm btn-danger"
-            >
-                Sair
+            <a href="logout.php" class="btn btn-sm btn-danger">
+                🚪 Sair
             </a>
-
         </div>
-
     </div>
 
-
-    <!-- =================================================
-         ALERTAS DA SESSÃO
-         ================================================= -->
-
     <?php if (isset($_SESSION['erro'])): ?>
-
         <script>
-
             Swal.fire({
                 icon: 'error',
                 title: 'Ops!',
                 text: <?= json_encode($_SESSION['erro']) ?>
             });
-
         </script>
-
         <?php unset($_SESSION['erro']); ?>
-
     <?php endif; ?>
 
-
     <?php if (isset($_SESSION['sucesso'])): ?>
-
         <script>
-
             Swal.fire({
                 icon: 'success',
                 title: 'Sucesso!',
                 text: <?= json_encode($_SESSION['sucesso']) ?>
             });
-
         </script>
-
         <?php unset($_SESSION['sucesso']); ?>
-
     <?php endif; ?>
 
-
-    <!-- =================================================
-         NOTIFICAÇÃO DE ORÇAMENTO
-         ================================================= -->
-
     <?php if ($diasRestantes > 0): ?>
-
-        <div
-            class="alert alert-<?= $notificacaoClasse ?> shadow-sm mb-4"
-        >
-
+        <div class="alert alert-<?= $notificacaoClasse ?> shadow-sm mb-4">
             <div class="d-flex align-items-center">
-
                 <div class="fs-3 me-3">
-
                     <?= $notificacaoClasse === 'danger'
                         ? '🚨'
-                        : ($notificacaoClasse === 'warning'
-                            ? '⚠️'
-                            : '💡')
-                    ?>
-
+                        : ($notificacaoClasse === 'warning' ? '⚠️' : '💡') ?>
                 </div>
 
                 <div>
-
                     <h5 class="mb-1">
                         <?= $notificacaoTitulo ?>
                     </h5>
@@ -624,97 +292,45 @@ function nomeMes(string $mes): string
                     </div>
 
                     <?php if ($notificacaoClasse !== 'danger'): ?>
-
                         <small class="d-block mt-1">
-
                             Hoje você já gastou
-
-                            <strong>
-                                <?= dinheiro($diarioHoje) ?>
-                            </strong>
-
+                            <strong><?= dinheiro($diarioHoje) ?></strong>
                             em gastos diários.
-
                         </small>
 
                         <small class="d-block">
-
                             Ainda pode gastar hoje:
-
-                            <strong>
-                                <?= dinheiro(max(0, $disponivelHoje)) ?>
-                            </strong>
-
+                            <strong><?= dinheiro(max(0, $disponivelHoje)) ?></strong>
                         </small>
-
                     <?php endif; ?>
-
                 </div>
-
             </div>
-
         </div>
-
     <?php endif; ?>
-
-
-    <!-- =================================================
-         CONTEÚDO PRINCIPAL
-         ================================================= -->
 
     <div class="row">
 
-
-        <!-- =================================================
-             COLUNA ESQUERDA
-             ================================================= -->
-
         <div class="col-md-4 mb-4">
 
-
-            <!-- SALDO -->
-
             <div class="card p-3 shadow-sm mb-4">
-
                 <h6 class="text-muted text-uppercase">
                     Saldo disponível
                 </h6>
 
-                <h2
-                    class="<?= $saldo < 0
-                        ? 'text-danger'
-                        : 'text-success'
-                    ?>"
-                >
-
+                <h2 class="<?= $saldo < 0 ? 'text-danger' : 'text-success' ?>">
                     <?= dinheiro($saldo) ?>
-
                 </h2>
-
             </div>
 
-
-            <!-- NOVA TRANSAÇÃO -->
-
             <div class="card p-3 shadow-sm">
-
                 <h5 class="mb-3">
                     Nova Transação
                 </h5>
 
-                <form
-                    action="processa.php"
-                    method="POST"
-                >
-
-
-                    <!-- VALOR -->
+                <form action="processa.php" method="POST">
 
                     <div class="mb-3">
-
-                        <label class="form-label">
-                            Valor
-                        </label>
+                        <label class="form-label">Valor</label>
 
                         <input
                             type="number"
@@ -725,24 +341,12 @@ function nomeMes(string $mes): string
                             placeholder="0,00"
                             required
                         >
-
                     </div>
 
-
-                    <!-- TIPO -->
-
                     <div class="mb-3">
+                        <label class="form-label">Tipo</label>
 
-                        <label class="form-label">
-                            Tipo
-                        </label>
-
-                        <select
-                            name="tipo"
-                            class="form-select"
-                            required
-                        >
-
+                        <select name="tipo" class="form-select" required>
                             <option value="Saida">
                                 Saída/Gasto Fixo
                             </option>
@@ -754,19 +358,11 @@ function nomeMes(string $mes): string
                             <option value="Entrada">
                                 Entrada/Ganho
                             </option>
-
                         </select>
-
                     </div>
 
-
-                    <!-- DATA -->
-
                     <div class="mb-3">
-
-                        <label class="form-label">
-                            Data
-                        </label>
+                        <label class="form-label">Data</label>
 
                         <input
                             type="date"
@@ -775,17 +371,10 @@ function nomeMes(string $mes): string
                             value="<?= date('Y-m-d') ?>"
                             required
                         >
-
                     </div>
 
-
-                    <!-- DESCRIÇÃO -->
-
                     <div class="mb-3">
-
-                        <label class="form-label">
-                            Descrição
-                        </label>
+                        <label class="form-label">Descrição</label>
 
                         <input
                             type="text"
@@ -794,27 +383,16 @@ function nomeMes(string $mes): string
                             placeholder="Ex: Mercado, Almoço"
                             required
                         >
-
                     </div>
 
-
-                    <button
-                        type="submit"
-                        class="btn btn-primary w-100"
-                    >
+                    <button type="submit" class="btn btn-primary w-100">
                         Cadastrar
                     </button>
 
                 </form>
-
             </div>
 
         </div>
-
-
-        <!-- =================================================
-             EXTRATO
-             ================================================= -->
 
         <div class="col-md-8 mb-4">
 
@@ -823,7 +401,6 @@ function nomeMes(string $mes): string
                 <h5 class="mb-3">
                     Extrato de Transações
                 </h5>
-
 
                 <?php if (!$transacoes): ?>
 
@@ -834,37 +411,16 @@ function nomeMes(string $mes): string
                 <?php else: ?>
 
                     <div class="table-responsive">
-
-                        <table
-                            class="table table-striped table-hover align-middle"
-                        >
+                        <table class="table table-striped table-hover align-middle">
 
                             <thead>
-
                                 <tr>
-
-                                    <th>
-                                        Valor
-                                    </th>
-
-                                    <th>
-                                        Tipo
-                                    </th>
-
-                                    <th>
-                                        Data
-                                    </th>
-
-                                    <th>
-                                        Descrição
-                                    </th>
-
-                                    <th class="text-center">
-                                        Ações
-                                    </th>
-
+                                    <th>Valor</th>
+                                    <th>Tipo</th>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th class="text-center">Ações</th>
                                 </tr>
-
                             </thead>
 
                             <tbody>
@@ -872,74 +428,40 @@ function nomeMes(string $mes): string
                             <?php foreach ($transacoes as $t): ?>
 
                                 <?php
-
-                                $tipo = $t['tipo'];
-
-                                $entrada =
-                                    $tipo === 'Entrada';
-
-                                $diario =
-                                    $tipo === 'Diario';
+                                $entrada = $t['tipo'] === 'Entrada';
+                                $diario = $t['tipo'] === 'Diario';
 
                                 $cor = $entrada
-
                                     ? 'text-success'
-
                                     : ($diario
                                         ? 'text-warning text-dark'
                                         : 'text-danger');
 
                                 $badge = $entrada
-
                                     ? 'bg-success'
-
                                     : ($diario
                                         ? 'bg-warning text-dark'
                                         : 'bg-danger');
-
                                 ?>
 
                                 <tr>
 
-                                    <td
-                                        class="<?= $cor ?> fw-bold"
-                                    >
-
-                                        <?= dinheiro(
-                                            (float) $t['valor']
-                                        ) ?>
-
+                                    <td class="<?= $cor ?> fw-bold">
+                                        <?= dinheiro((float) $t['valor']) ?>
                                     </td>
 
                                     <td>
-
-                                        <span
-                                            class="badge <?= $badge ?>"
-                                        >
-
-                                            <?= htmlspecialchars(
-                                                $tipo
-                                            ) ?>
-
+                                        <span class="badge <?= $badge ?>">
+                                            <?= htmlspecialchars($t['tipo']) ?>
                                         </span>
-
                                     </td>
 
                                     <td>
-
-                                        <?= date(
-                                            'd/m/Y',
-                                            strtotime($t['data'])
-                                        ) ?>
-
+                                        <?= date('d/m/Y', strtotime($t['data'])) ?>
                                     </td>
 
                                     <td class="descricao">
-
-                                        <?= htmlspecialchars(
-                                            $t['descricao']
-                                        ) ?>
-
+                                        <?= htmlspecialchars($t['descricao']) ?>
                                     </td>
 
                                     <td class="text-center">
@@ -968,9 +490,7 @@ function nomeMes(string $mes): string
                             <?php endforeach; ?>
 
                             </tbody>
-
                         </table>
-
                     </div>
 
                 <?php endif; ?>
@@ -981,299 +501,59 @@ function nomeMes(string $mes): string
 
     </div>
 
-
-    <!-- =================================================
-         RESUMO ANUAL
-         ================================================= -->
-
     <div class="card p-3 shadow-sm">
 
-        <div
-            class="d-flex justify-content-between align-items-center mb-3"
-        >
+        <div class="d-flex justify-content-between align-items-center mb-3">
 
             <h5 class="m-0">
                 📊 Resumo Anual
             </h5>
 
-            <span class="badge bg-secondary">
-                <?= $anoAtual ?>
-            </span>
+            <div class="d-flex align-items-center gap-2">
+
+                <button
+                    class="btn btn-sm btn-outline-secondary"
+                    id="btnVoltar"
+                    onclick="mudarAno(-1)"
+                >
+                    ← Voltar
+                </button>
+
+                <span id="anoExibido" class="badge bg-primary fs-6">
+                    <?= $anoAtual ?>
+                </span>
+
+                <button
+                    class="btn btn-sm btn-outline-secondary"
+                    id="btnAvancar"
+                    onclick="mudarAno(1)"
+                >
+                    Avançar →
+                </button>
+
+            </div>
 
         </div>
-
 
         <div class="table-responsive">
 
-            <table
-                class="table table-bordered table-striped text-center align-middle"
-            >
+            <table class="table table-bordered table-striped text-center align-middle">
 
                 <thead class="table-dark">
-
                     <tr>
-
-                        <th>
-                            Mês
-                        </th>
-
-                        <th>
-                            Entradas
-                        </th>
-
-                        <th>
-                            Saídas
-                        </th>
-
-                        <th>
-                            Diário
-                        </th>
-
-                        <th>
-                            Resultado
-                        </th>
-
-                        <th>
-                            Saldo
-                        </th>
-
-                        <th>
-                            Situação
-                        </th>
-
+                        <th>Mês</th>
+                        <th>Entradas</th>
+                        <th>Saídas</th>
+                        <th>Diário</th>
+                        <th>Resultado</th>
+                        <th>Saldo</th>
+                        <th>Situação</th>
                     </tr>
-
                 </thead>
 
-                <tbody>
-
-                <?php foreach ($resumoAnual as $mes): ?>
-
-                    <tr>
-
-                        <td class="fw-bold">
-
-                            <?= nomeMes(
-                                $mes['mes']
-                            ) ?>
-
-                        </td>
-
-
-                        <td class="text-success fw-bold">
-
-                            + <?= dinheiro(
-                                $mes['entrada']
-                            ) ?>
-
-                        </td>
-
-
-                        <td class="text-danger">
-
-                            - <?= dinheiro(
-                                $mes['saida']
-                            ) ?>
-
-                        </td>
-
-
-                        <td class="text-warning text-dark">
-
-                            - <?= dinheiro(
-                                $mes['diario']
-                            ) ?>
-
-                        </td>
-
-
-                        <td
-                            class="<?= $mes['resultado'] >= 0
-                                ? 'text-success'
-                                : 'text-danger'
-                            ?> fw-bold"
-                        >
-
-                            <?= $mes['resultado'] >= 0
-                                ? '+'
-                                : ''
-                            ?>
-
-                            <?= dinheiro(
-                                $mes['resultado']
-                            ) ?>
-
-                        </td>
-
-
-                        <td
-                            class="<?= $mes['saldo'] >= 0
-                                ? 'text-primary'
-                                : 'text-danger'
-                            ?> fw-bold"
-                        >
-
-                            <?= dinheiro(
-                                $mes['saldo']
-                            ) ?>
-
-                        </td>
-
-
-                        <td>
-
-                            <?php if (
-                                $mes['situacao'] === 'Real'
-                            ): ?>
-
-                                <span class="badge bg-secondary">
-                                    Real
-                                </span>
-
-                            <?php elseif (
-                                $mes['situacao'] === 'Atual'
-                            ): ?>
-
-                                <span class="badge bg-primary">
-                                    Atual
-                                </span>
-
-                            <?php else: ?>
-
-                                <span
-                                    class="badge bg-warning text-dark"
-                                >
-                                    Previsão
-                                </span>
-
-                            <?php endif; ?>
-
-                        </td>
-
-                    </tr>
-
-                <?php endforeach; ?>
-
-                </tbody>
+                <tbody id="tabelaResumo"></tbody>
 
             </table>
-
-        </div>
-
-
-        <!-- =================================================
-             PRÓXIMO ANO
-             ================================================= -->
-
-        <div class="mt-5">
-
-            <div
-                class="d-flex justify-content-between align-items-center mb-3"
-            >
-
-                <h5 class="m-0">
-                    🔮 <?= $proximoAno ?> — Próximo ano / Previsão
-                </h5>
-
-                <span class="badge bg-warning text-dark">
-                    Previsão
-                </span>
-
-            </div>
-
-
-            <div class="table-responsive">
-
-                <table
-                    class="table table-bordered table-striped text-center align-middle"
-                >
-
-                    <thead class="table-secondary">
-
-                        <tr>
-
-                            <th>
-                                Mês
-                            </th>
-
-                            <th>
-                                Entradas previstas
-                            </th>
-
-                            <th>
-                                Saídas previstas
-                            </th>
-
-                            <th>
-                                Diário previsto
-                            </th>
-
-                            <th>
-                                Resultado
-                            </th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                    <?php foreach (
-                        $previsaoProximoAno
-                        as $mes
-                    ): ?>
-
-                        <tr>
-
-                            <td class="fw-bold">
-
-                                <?= nomeMes(
-                                    $mes['mes']
-                                ) ?>
-
-                            </td>
-
-                            <td class="text-success">
-
-                                + <?= dinheiro(
-                                    $mes['entrada']
-                                ) ?>
-
-                            </td>
-
-                            <td class="text-danger">
-
-                                - <?= dinheiro(
-                                    $mes['saida']
-                                ) ?>
-
-                            </td>
-
-                            <td class="text-warning text-dark">
-
-                                - <?= dinheiro(
-                                    $mes['diario']
-                                ) ?>
-
-                            </td>
-
-                            <td class="fw-bold">
-
-                                <?= dinheiro(
-                                    $mes['resultado']
-                                ) ?>
-
-                            </td>
-
-                        </tr>
-
-                    <?php endforeach; ?>
-
-                    </tbody>
-
-                </table>
-
-            </div>
 
         </div>
 
@@ -1281,42 +561,137 @@ function nomeMes(string $mes): string
 
 </div>
 
-
 <script>
+    function confirmarExclusao(id) {
+        Swal.fire({
+            title: 'Excluir transação?',
+            text: 'Essa ação não poderá ser desfeita.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, excluir',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then(resultado => {
+            if (resultado.isConfirmed) {
+                window.location.href = `deletar.php?id=${id}`;
+            }
+        });
+    }
 
-function confirmarExclusao(id) {
+    const anoAtual = <?= $anoAtual ?>;
+    const anoFinal = <?= $anoFinal ?>;
 
-    Swal.fire({
+    const dadosAnos = <?= json_encode(
+        $anosResumo,
+        JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK
+    ) ?>;
 
-        title: 'Excluir transação?',
+    let anoSelecionado = anoAtual;
 
-        text: 'Essa ação não poderá ser desfeita.',
+    const meses = [
+        'Janeiro',
+        'Fevereiro',
+        'Março',
+        'Abril',
+        'Maio',
+        'Junho',
+        'Julho',
+        'Agosto',
+        'Setembro',
+        'Outubro',
+        'Novembro',
+        'Dezembro'
+    ];
 
-        icon: 'warning',
+    function dinheiroJS(valor) {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor);
+    }
 
-        showCancelButton: true,
+    function mostrarAno() {
+        const tabela = document.getElementById('tabelaResumo');
+        const ano = document.getElementById('anoExibido');
+        const voltar = document.getElementById('btnVoltar');
+        const avancar = document.getElementById('btnAvancar');
 
-        confirmButtonText: 'Sim, excluir',
+        ano.textContent = anoSelecionado;
+        tabela.innerHTML = '';
 
-        cancelButtonText: 'Cancelar',
+        (dadosAnos[anoSelecionado] || []).forEach((mes, index) => {
+            const resultadoClass =
+                mes.resultado >= 0
+                    ? 'text-success'
+                    : 'text-danger';
 
-        reverseButtons: true
+            const saldoClass =
+                mes.saldo >= 0
+                    ? 'text-primary'
+                    : 'text-danger';
 
-    }).then(resultado => {
+            let situacao;
 
-        if (resultado.isConfirmed) {
+            if (mes.situacao === 'Real') {
+                situacao = '<span class="badge bg-secondary">Real</span>';
+            } else if (mes.situacao === 'Atual') {
+                situacao = '<span class="badge bg-primary">Atual</span>';
+            } else {
+                situacao =
+                    '<span class="badge bg-warning text-dark">Previsão</span>';
+            }
 
-            window.location.href =
-                `deletar.php?id=${id}`;
+            tabela.innerHTML += `
+                <tr>
+                    <td class="fw-bold">
+                        ${meses[index]} de ${anoSelecionado}
+                    </td>
 
+                    <td class="text-success fw-bold">
+                        + ${dinheiroJS(mes.entrada)}
+                    </td>
+
+                    <td class="text-danger">
+                        - ${dinheiroJS(mes.saida)}
+                    </td>
+
+                    <td class="text-warning text-dark">
+                        - ${dinheiroJS(mes.diario)}
+                    </td>
+
+                    <td class="${resultadoClass} fw-bold">
+                        ${mes.resultado >= 0 ? '+' : ''}
+                        ${dinheiroJS(mes.resultado)}
+                    </td>
+
+                    <td class="${saldoClass} fw-bold">
+                        ${dinheiroJS(mes.saldo)}
+                    </td>
+
+                    <td>
+                        ${situacao}
+                    </td>
+                </tr>
+            `;
+        });
+
+        voltar.disabled = anoSelecionado <= anoAtual;
+        avancar.disabled = anoSelecionado >= anoFinal;
+    }
+
+    function mudarAno(direcao) {
+        const novoAno = anoSelecionado + direcao;
+
+        if (novoAno < anoAtual || novoAno > anoFinal) {
+            return;
         }
 
-    });
+        anoSelecionado = novoAno;
+        mostrarAno();
+    }
 
-}
-
+    mostrarAno();
 </script>
 
 </body>
-
 </html>
