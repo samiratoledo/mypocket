@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once 'conexao.php';
@@ -10,138 +11,299 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-$id = (int) ($_GET['id'] ?? 0);
-$usuarioId = (int) $_SESSION['usuario_id'];
+$id =
+    (int) (
+        $_GET['id'] ?? 0
+    );
+
+$usuarioId =
+    (int) $_SESSION['usuario_id'];
+
 
 if (!$id) {
     header('Location: index.php');
     exit;
 }
 
-/* Busca a transação */
+
+/*
+ * =========================
+ * BUSCA TRANSAÇÃO
+ * =========================
+ */
+
 $stmt = $pdo->prepare("
     SELECT *
     FROM transacoes
+
     WHERE id = :id
-    AND usuario_id = :usuario_id
+
+      AND usuario_id = :usuario_id
 ");
 
 $stmt->execute([
+
     'id' => $id,
-    'usuario_id' => $usuarioId
+
+    'usuario_id' =>
+        $usuarioId
 ]);
 
-$transacao = $stmt->fetch(PDO::FETCH_ASSOC);
+$transacao =
+    $stmt->fetch(PDO::FETCH_ASSOC);
+
 
 if (!$transacao) {
+
     header('Location: index.php');
     exit;
 }
 
-/* Atualização */
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $valor = (float) ($_POST['valor'] ?? 0);
-    $tipo = trim($_POST['tipo'] ?? '');
-    $data = trim($_POST['data'] ?? '');
-    $descricao = trim($_POST['descricao'] ?? '');
+/*
+ * =========================
+ * ATUALIZAÇÃO
+ * =========================
+ */
 
-    $tipos = [
-        'Entrada' => 'Entrada',
-        'Saida' => 'Saida',
-        'Saída' => 'Saida',
-        'Diario' => 'Diario',
-        'Diário' => 'Diario'
+if (
+    $_SERVER['REQUEST_METHOD']
+    === 'POST'
+) {
+
+    $valor =
+        (float) (
+            $_POST['valor'] ?? 0
+        );
+
+    $tipo =
+        trim(
+            $_POST['tipo'] ?? ''
+        );
+
+    $data =
+        trim(
+            $_POST['data'] ?? ''
+        );
+
+    $descricao =
+        trim(
+            $_POST['descricao'] ?? ''
+        );
+
+
+    /*
+     * NORMALIZA TIPO
+     */
+
+    $tiposValidos = [
+
+        'Entrada' =>
+            'Entrada',
+
+        'Saida' =>
+            'Saida',
+
+        'Saída' =>
+            'Saida',
+
+        'Diario' =>
+            'Diario',
+
+        'Diário' =>
+            'Diario'
     ];
 
-    $tipo = $tipos[$tipo] ?? null;
+    $tipo =
+        $tiposValidos[$tipo]
+        ?? null;
 
-    if ($valor <= 0 || !$tipo || !$data || !$descricao) {
-        $_SESSION['erro'] = 'Preencha todos os campos corretamente.';
-        header("Location: editar.php?id=$id");
+
+    /*
+     * VALIDAÇÃO
+     */
+
+    if (
+        $valor <= 0 ||
+        $tipo === null ||
+        $data === '' ||
+        $descricao === ''
+    ) {
+
+        $_SESSION['erro'] =
+            'Preencha todos os campos corretamente.';
+
+        header(
+            "Location: editar.php?id=$id"
+        );
+
         exit;
     }
 
-    /* Saldo sem considerar a transação atual */
+
+    /*
+     * =========================
+     * SALDO SEM A TRANSAÇÃO
+     * =========================
+     */
+
     $stmt = $pdo->prepare("
-        SELECT COALESCE(
-            SUM(
-                CASE
-                    WHEN tipo = 'Entrada' THEN valor
-                    ELSE -valor
-                END
-            ), 0
-        )
+        SELECT
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN tipo = 'Entrada'
+                        THEN valor
+                        ELSE -valor
+                    END
+                ),
+                0
+            )
+
         FROM transacoes
+
         WHERE usuario_id = :usuario_id
-        AND id != :id
+
+          AND id != :id
     ");
 
     $stmt->execute([
-        'usuario_id' => $usuarioId,
+
+        'usuario_id' =>
+            $usuarioId,
+
         'id' => $id
     ]);
 
-    $saldo = (float) $stmt->fetchColumn();
+    $saldo =
+        (float) $stmt->fetchColumn();
 
-    if ($tipo !== 'Entrada' && $valor > $saldo) {
-        $_SESSION['erro'] = 'Saldo insuficiente para essa alteração.';
-        header("Location: editar.php?id=$id");
+
+    /*
+     * =========================
+     * VERIFICA SALDO
+     * =========================
+     */
+
+    if (
+        $tipo !== 'Entrada' &&
+        $valor > $saldo
+    ) {
+
+        $_SESSION['erro'] =
+            'Saldo insuficiente para essa alteração.';
+
+        header(
+            "Location: editar.php?id=$id"
+        );
+
         exit;
     }
 
+
+    /*
+     * =========================
+     * ATUALIZA
+     * =========================
+     */
+
     $stmt = $pdo->prepare("
         UPDATE transacoes
-        SET valor = :valor,
+
+        SET
+            valor = :valor,
             tipo = :tipo,
             data = :data,
-            descricao = :descricao
+            descricao = :descricao,
+            competencia = :competencia
+
         WHERE id = :id
-        AND usuario_id = :usuario_id
+
+          AND usuario_id = :usuario_id
     ");
 
     $stmt->execute([
-        'valor' => $valor,
-        'tipo' => $tipo,
-        'data' => $data,
-        'descricao' => $descricao,
-        'id' => $id,
-        'usuario_id' => $usuarioId
+
+        'valor' =>
+            $valor,
+
+        'tipo' =>
+            $tipo,
+
+        'data' =>
+            $data,
+
+        'descricao' =>
+            $descricao,
+
+        'competencia' =>
+            date(
+                'Y-m',
+                strtotime($data)
+            ),
+
+        'id' =>
+            $id,
+
+        'usuario_id' =>
+            $usuarioId
     ]);
 
-    $_SESSION['sucesso'] = 'Transação atualizada com sucesso.';
+
+    $_SESSION['sucesso'] =
+        'Transação atualizada com sucesso.';
 
     header('Location: index.php');
     exit;
 }
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="pt-BR">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
 
-    <title>Editar Transação - MyPocket</title>
+    <title>
+        Editar Transação - MyPocket
+    </title>
+
 </head>
 
 <body>
 
 <div class="container py-5">
 
-    <div class="card p-4 shadow-sm mx-auto" style="max-width: 600px">
+    <div
+        class="card p-4 shadow-sm mx-auto"
+        style="max-width: 600px"
+    >
 
-        <h2 class="mb-4">Editar Transação</h2>
+        <h2 class="mb-4">
+            Editar Transação
+        </h2>
+
 
         <form method="POST">
 
             <div class="mb-3">
-                <label class="form-label">Valor</label>
+
+                <label class="form-label">
+                    Valor
+                </label>
 
                 <input
                     type="number"
@@ -149,69 +311,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     step="0.01"
                     min="0.01"
                     class="form-control"
-                    value="<?= htmlspecialchars($transacao['valor']) ?>"
+                    value="<?= htmlspecialchars(
+                        $transacao['valor']
+                    ) ?>"
                     required
                 >
+
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Tipo</label>
 
-                <select name="tipo" class="form-select" required>
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Tipo
+                </label>
+
+                <select
+                    name="tipo"
+                    class="form-select"
+                    required
+                >
 
                     <option
                         value="Entrada"
-                        <?= $transacao['tipo'] === 'Entrada' ? 'selected' : '' ?>
+                        <?= $transacao['tipo'] === 'Entrada'
+                            ? 'selected'
+                            : '' ?>
                     >
                         Entrada/Ganho
                     </option>
 
                     <option
                         value="Saida"
-                        <?= $transacao['tipo'] === 'Saida' ? 'selected' : '' ?>
+                        <?= $transacao['tipo'] === 'Saida'
+                            ? 'selected'
+                            : '' ?>
                     >
                         Saída/Gasto Fixo
                     </option>
 
                     <option
                         value="Diario"
-                        <?= $transacao['tipo'] === 'Diario' ? 'selected' : '' ?>
+                        <?= $transacao['tipo'] === 'Diario'
+                            ? 'selected'
+                            : '' ?>
                     >
                         Diário/Gasto Menor
                     </option>
 
                 </select>
+
             </div>
 
+
             <div class="mb-3">
-                <label class="form-label">Data</label>
+
+                <label class="form-label">
+                    Data
+                </label>
 
                 <input
                     type="date"
                     name="data"
                     class="form-control"
-                    value="<?= htmlspecialchars($transacao['data']) ?>"
+                    value="<?= htmlspecialchars(
+                        $transacao['data']
+                    ) ?>"
                     required
                 >
+
             </div>
 
+
             <div class="mb-3">
-                <label class="form-label">Descrição</label>
+
+                <label class="form-label">
+                    Descrição
+                </label>
 
                 <input
                     type="text"
                     name="descricao"
                     class="form-control"
-                    value="<?= htmlspecialchars($transacao['descricao']) ?>"
+                    value="<?= htmlspecialchars(
+                        $transacao['descricao']
+                    ) ?>"
                     required
                 >
+
             </div>
 
-            <button type="submit" class="btn btn-primary">
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+            >
                 Salvar alterações
             </button>
 
-            <a href="index.php" class="btn btn-secondary">
+
+            <a
+                href="index.php"
+                class="btn btn-secondary"
+            >
                 Cancelar
             </a>
 
@@ -222,4 +424,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 </body>
+
 </html>

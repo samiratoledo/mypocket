@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 function dinheiro(float $valor): string
 {
     return 'R$ ' . number_format($valor, 2, ',', '.');
