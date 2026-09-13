@@ -19,10 +19,7 @@ if ($id <= 0) {
     exit;
 }
 
-
-/* =========================
-   EXCLUIR TRANSAÇÃO
-========================= */
+/* EXCLUIR TRANSAÇÃO */
 
 $stmt = $pdo->prepare("
     DELETE FROM transacoes
@@ -36,9 +33,7 @@ $stmt->execute([
 ]);
 
 
-/* =========================
-   MENSAGEM
-========================= */
+/* MENSAGEM */
 
 if ($stmt->rowCount() > 0) {
 

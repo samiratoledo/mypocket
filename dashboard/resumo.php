@@ -2,14 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =========================================
- * RESUMO MENSAL
- * =========================================
- *
- * Busca todas as transações do usuário
- * agrupadas por ano e mês.
- */
+/* RESUMO MENSAL */
 
 $stmt = $pdo->prepare("
     SELECT
@@ -61,15 +54,6 @@ $stmt->execute([
 
 $dadosMensais = [];
 
-
-/*
- * Organiza os dados:
- *
- * $dadosMensais['2026-09']
- *
- * por exemplo.
- */
-
 foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $mes) {
 
     $chave = sprintf(
@@ -85,12 +69,7 @@ foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $mes) {
     ];
 }
 
-
-/*
- * =========================================
- * SALDO ANTERIOR AO ANO ATUAL
- * =========================================
- */
+/* SALDO ANTERIOR AO ANO ATUAL */
 
 $dataInicioAno = $anoAtual . '-01-01';
 
@@ -118,32 +97,16 @@ $stmt->execute([
 
 $saldoAnterior = (float) $stmt->fetchColumn();
 
-
-/*
- * =========================================
- * RESUMO DOS ANOS
- * =========================================
- */
+/* RESUMO DOS ANOS */
 
 $anosResumo = [];
 
-
 for ($ano = $anoAtual; $ano <= $anoFinal; $ano++) {
-
-    /*
-     * Para o ano atual começamos
-     * com o saldo dos anos anteriores.
-     *
-     * Para os próximos anos usamos
-     * o saldo atual como previsão.
-     */
-
     if ($ano === $anoAtual) {
         $saldoAno = $saldoAnterior;
     } else {
         $saldoAno = $saldo;
     }
-
 
     for ($mes = 1; $mes <= 12; $mes++) {
 
@@ -153,85 +116,43 @@ for ($ano = $anoAtual; $ano <= $anoFinal; $ano++) {
             $mes
         );
 
-
-        /*
-         * Busca os dados daquele mês.
-         */
-
         $dados = $dadosMensais[$chave] ?? [];
 
         $entrada = (float) ($dados['entrada'] ?? 0);
         $saida = (float) ($dados['saida'] ?? 0);
         $diario = (float) ($dados['diario'] ?? 0);
 
-
-        /*
-         * Resultado do mês.
-         *
-         * Entrada aumenta o saldo.
-         * Saída diminui.
-         * Diário também diminui.
-         */
-
+        /* Resultado do mês */
         $resultado =
             $entrada
             - $saida
             - $diario;
 
-
-        /*
-         * Atualiza o saldo acumulado.
-         */
-
+        /* Atualiza o saldo acumulado.*/
         $saldoAno += $resultado;
 
-
-        /*
-         * Define a situação do mês.
-         */
-
+        /* Define a situação do mês */
         if ($ano < $anoAtual) {
-
             $situacao = 'Real';
-
         } elseif ($ano > $anoAtual) {
-
             $situacao = 'Previsão';
-
         } elseif ($mes < $mesAtual) {
-
             $situacao = 'Real';
-
         } elseif ($mes === $mesAtual) {
-
             $situacao = 'Atual';
-
         } else {
-
             $situacao = 'Previsão';
         }
 
-
-        /*
-         * Guarda os dados.
-         */
-
+        /* Guarda os dados */
         $anosResumo[$ano][] = [
-
             'mes' => $chave,
-
             'entrada' => $entrada,
-
             'saida' => $saida,
-
             'diario' => $diario,
-
             'resultado' => $resultado,
-
             'saldo' => $saldoAno,
-
             'situacao' => $situacao
-
         ];
     }
 }

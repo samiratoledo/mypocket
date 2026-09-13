@@ -1,6 +1,4 @@
-/* =========================
-   EXCLUSÃO
-========================= */
+// EXCLUSÃO */
 function confirmarExclusao(id) {
     Swal.fire({
         title: 'Excluir transação?',
@@ -17,9 +15,7 @@ function confirmarExclusao(id) {
     });
 }
 
-/* =========================
-   COBRANÇA
-========================= */
+// COBRANÇA */
 const tipoCobranca = document.getElementById('tipoCobranca');
 const configCobranca = document.getElementById('configCobranca');
 const parcelasCampo = document.getElementById('parcelasCampo');
@@ -36,9 +32,7 @@ if (tipoCobranca) {
     });
 }
 
-/* =========================
-   FILTRO DO EXTRATO
-========================= */
+/* FILTRO DO EXTRATO */
 const filtroMes = document.getElementById('filtroMes');
 const linhas = document.querySelectorAll('tr[data-mes]');
 
@@ -74,9 +68,7 @@ if (filtroMes && linhas.length > 0) {
     });
 }
 
-/* =========================
-   RESUMO ANUAL
-========================= */
+// RESUMO ANUAL
 // Garante o recebimento das variáveis injetadas pelo PHP com valores padrão
 let anoSelecionado = typeof anoAtualInicial !== 'undefined' ? Number(anoAtualInicial) : new Date().getFullYear();
 const dadosResumo = typeof dadosResumoAnual !== 'undefined' ? dadosResumoAnual : {};

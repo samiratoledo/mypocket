@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * TRANSAÇÕES DO USUÁRIO
- */
+/* TRANSAÇÕES DO USUÁRIO */
 
 $stmt = $pdo->prepare("
     SELECT
@@ -26,10 +24,7 @@ $stmt->execute([
 
 $transacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-/*
- * SALDO ATUAL
- */
+/* SALDO ATUAL */
 
 $saldo = 0.0;
 

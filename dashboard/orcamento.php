@@ -10,9 +10,7 @@ $diasNoMes = (int) $hoje->format('t');
 $diasRestantes = $diasNoMes - $diaAtual + 1;
 
 
-/*
- * ORÇAMENTO DO MÊS
- */
+/* ORÇAMENTO DO MÊS */
 
 $stmt = $pdo->prepare("
     SELECT
@@ -68,9 +66,7 @@ $limiteDiario = $diasRestantes > 0
     : 0;
 
 
-/*
- * GASTOS DIÁRIOS DE HOJE
- */
+/* GASTOS DIÁRIOS DE HOJE */
 
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(valor), 0)
@@ -90,9 +86,7 @@ $diarioHoje = (float) $stmt->fetchColumn();
 $disponivelHoje = $limiteDiario - $diarioHoje;
 
 
-/*
- * NOTIFICAÇÃO
- */
+/* NOTIFICAÇÃO */
 
 if ($disponivelMes < 0) {
 

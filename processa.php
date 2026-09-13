@@ -18,13 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $usuarioId = (int) $_SESSION['usuario_id'];
 
-
-/*
- * =========================
- * DADOS
- * =========================
- */
-
 $valor = (float) ($_POST['valor'] ?? 0);
 
 $tipo = trim(
@@ -57,13 +50,6 @@ $totalParcelas =
         $_POST['total_parcelas'] ?? 0
     );
 
-
-/*
- * =========================
- * NORMALIZA TIPO
- * =========================
- */
-
 $tiposValidos = [
     'Entrada' => 'Entrada',
     'Saida' => 'Saida',
@@ -75,12 +61,6 @@ $tiposValidos = [
 $tipo =
     $tiposValidos[$tipo] ?? null;
 
-
-/*
- * =========================
- * VALIDAÇÃO BÁSICA
- * =========================
- */
 
 if (
     $valor <= 0 ||
@@ -95,13 +75,6 @@ if (
     header('Location: index.php');
     exit;
 }
-
-
-/*
- * =========================
- * COBRANÇA VÁLIDA
- * =========================
- */
 
 if (
     !in_array(
@@ -118,18 +91,6 @@ if (
     exit;
 }
 
-
-/*
- * =========================
- * REGRAS DE NEGÓCIO
- * =========================
- */
-
-/*
- * Entrada e Diário são somente
- * transações normais.
- */
-
 if (
     $tipo !== 'Saida' &&
     $cobranca !== 'normal'
@@ -143,11 +104,7 @@ if (
 }
 
 
-/*
- * =========================
- * TRANSAÇÃO NORMAL
- * =========================
- */
+/* TRANSAÇÃO NORMAL */
 
 if ($cobranca === 'normal') {
 
@@ -193,9 +150,7 @@ if ($cobranca === 'normal') {
     }
 
 
-    /*
-     * CADASTRA
-     */
+    /* CADASTRA */
 
     $stmt = $pdo->prepare("
         INSERT INTO transacoes
@@ -237,16 +192,7 @@ if ($cobranca === 'normal') {
 }
 
 
-/*
- * =========================
- * FIXA / PARCELADA
- * =========================
- */
-
-
-/*
- * Só Saída chega aqui.
- */
+/* FIXA / PARCELADA */
 
 if ($tipo !== 'Saida') {
 
@@ -257,11 +203,6 @@ if ($tipo !== 'Saida') {
     exit;
 }
 
-
-/*
- * Dia válido.
- */
-
 if ($dia < 1 || $dia > 31) {
 
     $_SESSION['erro'] =
@@ -270,11 +211,6 @@ if ($dia < 1 || $dia > 31) {
     header('Location: index.php');
     exit;
 }
-
-
-/*
- * Frequência válida.
- */
 
 if (
     !in_array(
@@ -291,11 +227,6 @@ if (
     exit;
 }
 
-
-/*
- * Parcelamento.
- */
-
 if ($cobranca === 'parcelada') {
 
     if ($totalParcelas < 1) {
@@ -307,11 +238,6 @@ if ($cobranca === 'parcelada') {
         exit;
     }
 
-
-    /*
-     * Parcelamento será mensal.
-     */
-
     if ($frequencia !== 'mensal') {
 
         $_SESSION['erro'] =
@@ -320,11 +246,6 @@ if ($cobranca === 'parcelada') {
         header('Location: index.php');
         exit;
     }
-
-
-    /*
-     * Data final.
-     */
 
     $dataFim =
         (new DateTime($dataInicio))
@@ -336,20 +257,11 @@ if ($cobranca === 'parcelada') {
             ->format('Y-m-d');
 
 } else {
-
-    /*
-     * Fixa não possui fim.
-     */
-
-    $dataFim = null;
+        $dataFim = null;
 }
 
 
-/*
- * =========================
- * CADASTRA COBRANÇA
- * =========================
- */
+/* CADASTRA COBRANÇA */
 
 $stmt = $pdo->prepare("
     INSERT INTO transacoes_fixas

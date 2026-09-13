@@ -26,11 +26,7 @@ if (!$id) {
 }
 
 
-/*
- * =========================
- * BUSCA TRANSAÇÃO
- * =========================
- */
+/* BUSCA TRANSAÇÃO */
 
 $stmt = $pdo->prepare("
     SELECT *
@@ -60,11 +56,7 @@ if (!$transacao) {
 }
 
 
-/*
- * =========================
- * ATUALIZAÇÃO
- * =========================
- */
+/* ATUALIZAÇÃO */
 
 if (
     $_SERVER['REQUEST_METHOD']
@@ -91,11 +83,6 @@ if (
             $_POST['descricao'] ?? ''
         );
 
-
-    /*
-     * NORMALIZA TIPO
-     */
-
     $tiposValidos = [
 
         'Entrada' =>
@@ -118,10 +105,7 @@ if (
         $tiposValidos[$tipo]
         ?? null;
 
-
-    /*
-     * VALIDAÇÃO
-     */
+    /* VALIDAÇÃO */
 
     if (
         $valor <= 0 ||
@@ -141,11 +125,7 @@ if (
     }
 
 
-    /*
-     * =========================
-     * SALDO SEM A TRANSAÇÃO
-     * =========================
-     */
+    /* SALDO SEM A TRANSAÇÃO */
 
     $stmt = $pdo->prepare("
         SELECT
@@ -179,11 +159,7 @@ if (
         (float) $stmt->fetchColumn();
 
 
-    /*
-     * =========================
-     * VERIFICA SALDO
-     * =========================
-     */
+    /* VERIFICA SALDO */
 
     if (
         $tipo !== 'Entrada' &&
@@ -200,12 +176,7 @@ if (
         exit;
     }
 
-
-    /*
-     * =========================
-     * ATUALIZA
-     * =========================
-     */
+    /* ATUALIZA */
 
     $stmt = $pdo->prepare("
         UPDATE transacoes
