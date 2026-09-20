@@ -5,7 +5,7 @@ declare(strict_types=1);
 $host = 'localhost';
 $db = 'sistema_crud';
 $user = 'root';
-$pass = 'SQL@Dev2134';
+$pass = '';
 
 try {
 

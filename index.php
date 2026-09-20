@@ -169,16 +169,6 @@ require_once 'dashboard/orcamento.php';
 
                         <?php if ($notificacaoClasse !== 'danger'): ?>
 
-                            <small class="d-block mt-1">
-
-                                Hoje você já gastou
-                                <strong>
-                                    <?= dinheiro($diarioHoje) ?>
-                                </strong>
-                                em gastos diários.
-
-                            </small>
-
                             <small class="d-block">
 
                                 Ainda pode gastar hoje:

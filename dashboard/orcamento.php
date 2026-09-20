@@ -65,7 +65,6 @@ $limiteDiario = $diasRestantes > 0
     ? $disponivelMes / $diasRestantes
     : 0;
 
-
 /* GASTOS DIÁRIOS DE HOJE */
 
 $stmt = $pdo->prepare("

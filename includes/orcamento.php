@@ -32,7 +32,7 @@ $entradasMes = (float) $orcamento['entradas'];
 $saidasMes = (float) $orcamento['saidas'];
 $diariosMes = (float) $orcamento['diarios'];
 
-$orcamentoDiarioMes = $entradasMes - $saidasMes;
+$orcamentoDiarioMes = $entradasMes - $saidasMes - $diarioMes;
 
 
 /* LIMITE DIÁRIO ORIGINAL */

@@ -108,12 +108,6 @@ if (
 
 if ($cobranca === 'normal') {
 
-    /*
-     * Entrada não precisa verificar saldo.
-     *
-     * Saída e Diário precisam.
-     */
-
     if ($tipo !== 'Entrada') {
 
         $stmt = $pdo->prepare("
@@ -310,9 +304,7 @@ $stmt->execute([
 
 
 /*
- * =========================
  * MENSAGEM
- * =========================
  */
 
 $_SESSION['sucesso'] =

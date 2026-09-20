@@ -11,10 +11,7 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-$id =
-    (int) (
-        $_GET['id'] ?? 0
-    );
+$id = (int) ($_GET['id'] ?? 0);
 
 $usuarioId =
     (int) $_SESSION['usuario_id'];
@@ -59,32 +56,18 @@ if (!$transacao) {
 /* ATUALIZAÇÃO */
 
 if (
-    $_SERVER['REQUEST_METHOD']
-    === 'POST'
-) {
+    $_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $valor =
-        (float) (
-            $_POST['valor'] ?? 0
-        );
+    $valor = (float) ($_POST['valor'] ?? 0);
 
     $tipo =
-        trim(
-            $_POST['tipo'] ?? ''
-        );
+        trim($_POST['tipo'] ?? '');
 
-    $data =
-        trim(
-            $_POST['data'] ?? ''
-        );
+    $data = trim($_POST['data'] ?? '');
 
-    $descricao =
-        trim(
-            $_POST['descricao'] ?? ''
-        );
+    $descricao = trim($_POST['descricao'] ?? '');
 
     $tiposValidos = [
-
         'Entrada' =>
             'Entrada',
 
@@ -113,7 +96,6 @@ if (
         $data === '' ||
         $descricao === ''
     ) {
-
         $_SESSION['erro'] =
             'Preencha todos os campos corretamente.';
 
@@ -148,15 +130,13 @@ if (
     ");
 
     $stmt->execute([
-
         'usuario_id' =>
             $usuarioId,
 
         'id' => $id
     ]);
 
-    $saldo =
-        (float) $stmt->fetchColumn();
+    $saldo = (float) $stmt->fetchColumn();
 
 
     /* VERIFICA SALDO */
