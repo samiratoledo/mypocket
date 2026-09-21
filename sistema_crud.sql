@@ -83,7 +83,3 @@ DESCRIBE usuarios;
 DESCRIBE transacoes;
 
 DESCRIBE transacoes_fixas;
-
-SELECT id, valor, tipo, data_inicio, dia, frequencia, tipo_cobranca, total_parcelas
-FROM transacoes_fixas
-WHERE usuario_id = 1;
